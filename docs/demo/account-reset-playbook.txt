@@ -1,0 +1,10 @@
+Account Reset Playbook
+
+Customer account reset
+To reset a customer account, clear the active session, issue a password reset link, and record the support ticket id.
+
+Verification
+Confirm the user can sign in again before closing the ticket.
+
+Audit note
+Record who performed the reset and why the action was taken.

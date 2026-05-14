@@ -1,0 +1,447 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector, citext]
+}
+
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  email        String     @unique @db.Citext
+  passwordHash String
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  UserRole        UserRole[]
+  KbMember        KbMember[]
+  AuditLog        AuditLog[]
+  refreshSessions RefreshSession[]
+  conversations Conversation[]
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+model Role {
+  id        String     @id @default(uuid()) @db.Uuid
+  name      SystemRole @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  UserRole UserRole[]
+}
+
+enum SystemRole {
+  SUPER_ADMIN
+  OPERATOR
+  SYSTEM
+  USER
+}
+
+model UserRole {
+  userId String @db.Uuid
+  roleId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model RefreshSession {
+  id         String   @id @db.Uuid
+  userId     String   @db.Uuid
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+model KnowledgeBase {
+  id          String       @id @default(uuid()) @db.Uuid
+  slug        String       @unique @db.Citext
+  name        String
+  description String?
+  status      KbStatus     @default(ACTIVE)
+  visibility  KbVisibility @default(PRIVATE)
+  archivedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  members       KbMember[]
+  documents     Document[]
+  chunks        DocumentChunk[]
+  conversations Conversation[]
+  evalSets      EvalSet[]
+  evalRuns      EvalRun[]
+  auditLogs     AuditLog[]
+
+  @@index([status, updatedAt(sort: Desc)])
+}
+
+enum KbVisibility {
+  PRIVATE
+  INTERNAL
+  PUBLIC
+}
+
+enum KbStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+model KbMember {
+  kbId      String   @db.Uuid
+  userId    String   @db.Uuid
+  role      KbRole   @default(VIEWER)
+  createdAt DateTime @default(now())
+
+  kb   KnowledgeBase @relation(fields: [kbId], references: [id], onDelete: Cascade)
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([kbId, userId])
+  @@index([userId, kbId])
+}
+
+enum KbRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+model Document {
+  id               String         @id @default(uuid()) @db.Uuid
+  kbId             String         @db.Uuid
+  name             String
+  type             String
+  status           DocumentStatus @default(UPLOADED)
+  lastErrorCode    String?
+  lastErrorMessage String?        @db.Text
+  indexedAt        DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  kb                  KnowledgeBase @relation(fields: [kbId], references: [id], onDelete: Restrict)
+  versions            DocumentVersion[]
+  chunks              DocumentChunk[]
+  citations           Citation[]
+  expectedByEvalCases EvalCase[]     @relation("EvalCaseExpectedSourceDocument")
+
+  @@unique([id, kbId])
+  @@index([kbId, createdAt(sort: Desc)])
+  @@index([kbId, status, createdAt(sort: Desc)])
+}
+
+enum DocumentStatus {
+  UPLOADED
+  QUEUED
+  PROCESSING
+  INDEXED
+  FAILED
+  ARCHIVED
+}
+
+model DocumentVersion {
+  id                  String                @id @default(uuid()) @db.Uuid
+  documentId          String                @db.Uuid
+  storageBucket       String?
+  s3Key               String
+  contentHash         String
+  versionNumber       Int                   @default(1)
+  status              DocumentVersionStatus @default(QUEUED)
+  ingestVersion       Int                   @default(1)
+  pipelineVersion     String                @default("phase2.v1")
+  vectorizationStatus VectorizationStatus   @default(PENDING)
+  chunkCount          Int                   @default(0)
+  lastErrorCode       String?
+  lastErrorMessage    String?               @db.Text
+  startedAt           DateTime?
+  finishedAt          DateTime?
+  indexedAt           DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  document   Document        @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  ingestJobs IngestJob[]
+  chunks     DocumentChunk[]
+
+  @@unique([documentId, versionNumber])
+  @@unique([id, documentId])
+}
+
+enum DocumentVersionStatus {
+  QUEUED
+  PROCESSING
+  INDEXED
+  FAILED
+}
+
+enum VectorizationStatus {
+  PENDING
+  DISABLED
+  COMPLETED
+  FAILED
+}
+
+model IngestJob {
+  id                String          @id @default(uuid()) @db.Uuid
+  documentVersionId String          @db.Uuid
+  status            IngestJobStatus @default(WAITING)
+  errorCode         String?
+  errorMessage      String?         @db.Text
+  retryable         Boolean         @default(true)
+  attempts          Int             @default(0)
+  maxAttempts       Int             @default(3)
+  correlationId     String?
+  startedAt         DateTime?
+  finishedAt        DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  documentVersion DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Restrict)
+
+  @@index([documentVersionId, createdAt(sort: Desc)])
+}
+
+enum IngestJobStatus {
+  WAITING
+  ACTIVE
+  COMPLETED
+  FAILED
+  DEAD_LETTER
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @db.Uuid
+  entityType String
+  entityId   String
+  action     String
+  kbId       String?  @db.Uuid
+  payload    Json?
+  createdAt  DateTime @default(now())
+
+  actor User?          @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  kb    KnowledgeBase? @relation(fields: [kbId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt(sort: Desc)])
+  @@index([action, createdAt(sort: Desc)])
+  @@index([entityType, entityId, createdAt(sort: Desc)])
+  @@index([kbId, createdAt(sort: Desc)])
+}
+
+model DocumentChunk {
+  id                String                 @id @default(uuid()) @db.Uuid
+  documentId        String                 @db.Uuid
+  documentVersionId String                 @db.Uuid
+  kbId              String                 @db.Uuid
+  chunkNo           Int
+  content           String                 @db.Text
+  searchText        String                 @db.Text
+  tokenCount        Int
+  sectionTitle      String?
+  pageNumber        Int?
+  sourceTitle       String?
+  language          String?
+  chunkingStrategy  String
+  chunkingVersion   String
+  embeddingModel    String?
+  embeddingDim      Int?
+  embedding         Unsupported("vector")?
+  checksum          String
+  metadataJson      Json?
+  supersededAt      DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  document        Document        @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  documentVersion DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Restrict)
+  kb              KnowledgeBase   @relation(fields: [kbId], references: [id], onDelete: Restrict)
+  citations       Citation[]
+
+  @@unique([id, documentId])
+  @@index([documentVersionId, supersededAt])
+  @@index([documentId, supersededAt])
+  @@index([kbId, supersededAt])
+  @@index([kbId, embeddingModel, embeddingDim, supersededAt])
+}
+
+model Conversation {
+  id             String             @id @default(uuid()) @db.Uuid
+  userId         String             @db.Uuid
+  kbId           String             @db.Uuid
+  title          String?
+  status         ConversationStatus @default(ACTIVE)
+  lastActivityAt DateTime           @default(now())
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  kb       KnowledgeBase @relation(fields: [kbId], references: [id], onDelete: Restrict)
+  messages Message[]
+
+  @@index([userId, lastActivityAt(sort: Desc)])
+  @@index([kbId, lastActivityAt(sort: Desc)])
+}
+
+enum ConversationStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+model Message {
+  id                String      @id @default(uuid()) @db.Uuid
+  conversationId    String      @db.Uuid
+  role              MessageRole
+  content           String      @db.Text
+  latencyMs         Int?
+  usageJson         Json?
+  retrievalMetaJson Json?
+  modelName         String?
+  createdAt         DateTime    @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  citations    Citation[]
+
+  @@index([conversationId, createdAt])
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+model Citation {
+  id            String   @id @default(uuid()) @db.Uuid
+  messageId     String   @db.Uuid
+  chunkId       String   @db.Uuid
+  documentId    String   @db.Uuid
+  documentTitle String
+  rank          Int
+  score         Float
+  snippet       String   @db.Text
+  pageNumber    Int?
+  sectionTitle  String?
+  createdAt     DateTime @default(now())
+
+  message  Message       @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  chunk    DocumentChunk @relation(fields: [chunkId], references: [id], onDelete: Restrict)
+  document Document      @relation(fields: [documentId], references: [id], onDelete: Restrict)
+
+  @@unique([messageId, chunkId])
+  @@index([messageId, rank])
+  @@index([chunkId])
+  @@index([documentId])
+}
+
+model EvalSet {
+  id          String        @id @default(uuid()) @db.Uuid
+  kbId        String        @db.Uuid
+  name        String
+  description String?
+  status      EvalSetStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  kb    KnowledgeBase @relation(fields: [kbId], references: [id], onDelete: Restrict)
+  cases EvalCase[]
+  runs  EvalRun[]
+
+  @@unique([kbId, name])
+  @@unique([id, kbId])
+  @@index([kbId, createdAt(sort: Desc)])
+}
+
+enum EvalSetStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+model EvalCase {
+  id                       String         @id @default(uuid()) @db.Uuid
+  evalSetId                String         @db.Uuid
+  question                 String         @db.Text
+  expectedAnswer           String?        @db.Text
+  expectedSourceDocumentId String?        @db.Uuid
+  expectedSourceHint       String?
+  category                 String         @default("general")
+  difficulty               String         @default("medium")
+  status                   EvalCaseStatus @default(ACTIVE)
+  createdAt                DateTime       @default(now())
+
+  evalSet                EvalSet   @relation(fields: [evalSetId], references: [id], onDelete: Restrict)
+  expectedSourceDocument Document? @relation("EvalCaseExpectedSourceDocument", fields: [expectedSourceDocumentId], references: [id], onDelete: SetNull)
+  items                  EvalItem[]
+
+  @@index([evalSetId, status])
+  @@index([expectedSourceDocumentId])
+}
+
+enum EvalCaseStatus {
+  ACTIVE
+  DISABLED
+}
+
+model EvalRun {
+  id                  String        @id @default(uuid()) @db.Uuid
+  evalSetId           String        @db.Uuid
+  kbId                String        @db.Uuid
+  modelName           String
+  retrievalConfigJson Json
+  promptVersion       String
+  chunkingVersion     String
+  startedAt           DateTime      @default(now())
+  finishedAt          DateTime?
+  status              EvalRunStatus @default(RUNNING)
+  summaryJson         Json?
+
+  evalSet EvalSet       @relation(fields: [evalSetId], references: [id], onDelete: Restrict)
+  kb      KnowledgeBase @relation(fields: [kbId], references: [id], onDelete: Restrict)
+  items   EvalItem[]
+
+  @@index([evalSetId, startedAt(sort: Desc)])
+  @@index([kbId, startedAt(sort: Desc)])
+  @@index([status, startedAt(sort: Desc)])
+}
+
+enum EvalRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model EvalItem {
+  id                   String   @id @default(uuid()) @db.Uuid
+  evalRunId            String   @db.Uuid
+  evalCaseId           String   @db.Uuid
+  actualAnswer         String   @db.Text
+  retrievedSourcesJson Json
+  passed               Boolean
+  score                Float
+  notes                String?  @db.Text
+  regressionFlag       Boolean  @default(false)
+  latencyMs            Int?
+  usageJson            Json?
+  createdAt            DateTime @default(now())
+
+  evalRun  EvalRun  @relation(fields: [evalRunId], references: [id], onDelete: Cascade)
+  evalCase EvalCase @relation(fields: [evalCaseId], references: [id], onDelete: Cascade)
+
+  @@unique([evalRunId, evalCaseId])
+  @@index([evalRunId, createdAt])
+  @@index([evalRunId, regressionFlag])
+  @@index([evalCaseId])
+}

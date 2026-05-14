@@ -1,0 +1,26 @@
+node_modules
+dist
+.env
+*.log
+coverage
+.pnp
+.pnp.js
+.DS_Store
+__pycache__/
+*.pyc
+venv/
+.venv/
+.pytest_cache/
+
+
+# Local artifacts (do not commit)
+*.zip
+rag.zip
+
+# Sensitive environment files (do not commit actual values)
+infra/compose/demo.env
+
+# Temporary and local notes
+lenh_chay.txt
+resp.json
+docs.json

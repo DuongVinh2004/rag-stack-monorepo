@@ -1,0 +1,16 @@
+.git
+.gitignore
+node_modules
+coverage
+dist
+tests
+services/api/node_modules
+packages/*/node_modules
+services/api/dist
+services/api/.env
+services/worker/.env
+services/worker/.pytest_cache
+services/worker/tests
+packages/*/dist
+**/__pycache__
+**/*.pyc

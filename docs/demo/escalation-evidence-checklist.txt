@@ -1,0 +1,10 @@
+Escalation Evidence Checklist
+
+Required identifiers
+Before escalating an ingestion issue, collect the ingest job id, document id, document version id, and correlation id from the latest failed attempt.
+
+Required diagnostics
+Attach the latest worker logs and note whether the failure happened during object fetch, parsing, normalization, chunking, embedding, or persistence.
+
+Escalation threshold
+Escalate after two failed retries for the same document version unless the error is clearly a user-side input problem.

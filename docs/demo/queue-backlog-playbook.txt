@@ -1,0 +1,10 @@
+Queue Backlog Playbook
+
+First verification
+If the ingest queue backlog grows, check Redis health first.
+
+Second verification
+If Redis is healthy, confirm the worker is consuming from the ingest_jobs queue and verify that object storage is reachable from the worker runtime.
+
+When to pause retries
+Do not keep retrying the same document while the queue is stalled, because that adds noise without creating new recovery signals.

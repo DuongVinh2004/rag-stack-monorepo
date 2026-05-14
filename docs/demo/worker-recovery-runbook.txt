@@ -1,0 +1,10 @@
+Worker Recovery Runbook
+
+Resetting the worker
+If ingestion jobs stop moving, restart the worker process before retrying the failed job. Capture the correlation id before the restart so the next investigation can trace the same failure.
+
+Health verification
+After the restart, confirm both /api/v1/health/ready endpoints return ok for the API and the worker before retrying the document.
+
+Retry reminder
+Do not requeue the same document until the worker is healthy again, or the same failure can loop without new evidence.

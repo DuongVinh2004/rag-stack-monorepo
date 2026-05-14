@@ -1,0 +1,13 @@
+Worker Recovery Runbook
+
+Resetting the worker
+If ingestion jobs stop moving, restart the worker process before retrying the failed job. Confirm the worker health endpoint returns ok after the restart.
+
+Escalation checklist
+Before escalating an ingestion issue, collect the ingest job id, document id, document version id, correlation id, and the latest worker logs.
+
+Queue backlog guidance
+If the queue backlog grows, check Redis health first, then confirm the worker is consuming from the ingest_jobs queue, and verify object storage access.
+
+Citation expectations
+Support answers must cite the exact source chunks that back the answer. If retrieval evidence is weak, the service should refuse rather than guess.
