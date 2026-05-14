@@ -9,6 +9,75 @@ on:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: rag_user
+          POSTGRES_PASSWORD: rag_password
+          POSTGRES_DB: rag_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U rag_user -d rag_db"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+      minio:
+        image: bitnami/minio:latest
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+          MINIO_DEFAULT_BUCKETS: knowledge-base-bucket
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd="curl -f http://localhost:9000/minio/health/live"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DATABASE_URL: postgresql://rag_user:rag_password@localhost:5432/rag_db?schema=public
+      JWT_SECRET: ci-test-jwt-secret-not-for-production
+      JWT_ISSUER: rag-backend-api
+      JWT_AUDIENCE: rag-backend-clients
+      JWT_ACCESS_TTL: 60m
+      BCRYPT_ROUNDS: 10
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      S3_ENDPOINT: http://localhost:9000
+      S3_BUCKET: knowledge-base-bucket
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      INGEST_QUEUE_NAME: ingest_jobs
+      OPENAI_API_KEY: ""
+      OPENAI_GROUNDED_CHAT_ENABLED: "false"
+      OPENAI_EMBEDDINGS_ENABLED: "false"
+      OPENAI_CHAT_MODEL: gpt-4o-mini
+      OPENAI_EMBEDDING_MODEL: text-embedding-3-small
+      DEMO_ADMIN_EMAIL: demo-admin@example.com
+      DEMO_ADMIN_PASSWORD: DemoPass1234
+      DEMO_EDITOR_EMAIL: demo-editor@example.com
+      DEMO_EDITOR_PASSWORD: DemoPass1234
+      DEMO_VIEWER_EMAIL: demo-viewer@example.com
+      DEMO_VIEWER_PASSWORD: DemoPass1234
+      DEMO_USER_EMAIL: demo-user@example.com
+      DEMO_USER_PASSWORD: DemoPass1234
+      DEMO_KB_NAME: Support Demo KB
+      DEMO_KB_DESCRIPTION: CI test KB
+      DEMO_KB_VISIBILITY: PRIVATE
+      DEMO_EVAL_SET_NAME: Support Smoke Eval
+      UPLOAD_MAX_BYTES: 10485760
+      CORS_ORIGINS: http://localhost:5173
     steps:
       - name: Checkout
         uses: actions/checkout@v4
