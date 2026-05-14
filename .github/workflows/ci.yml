@@ -112,6 +112,12 @@ jobs:
       - name: Build shared types
         run: pnpm --filter @rag/shared-types run build
 
+      - name: Apply migrations for e2e tests
+        run: pnpm --filter api run prisma:migrate:deploy
+
+      - name: Prepare worker .env for tests
+        run: cp services/worker/.env.example services/worker/.env
+
       - name: Lint API
         run: pnpm run lint
 
