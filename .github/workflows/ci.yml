@@ -61,6 +61,9 @@ jobs:
       - name: Build API
         run: pnpm --filter api run build
 
+      - name: Prepare demo.env for compose steps
+        run: cp infra/compose/demo.env.example infra/compose/demo.env
+
       - name: Validate Compose config
         run: pnpm run compose:config
 
@@ -99,6 +102,37 @@ jobs:
           --health-retries=12
     env:
       DATABASE_URL: postgresql://rag_user:rag_password@localhost:5432/rag_db?schema=public
+      JWT_SECRET: ci-test-jwt-secret-not-for-production
+      JWT_ISSUER: rag-backend-api
+      JWT_AUDIENCE: rag-backend-clients
+      JWT_ACCESS_TTL: 60m
+      BCRYPT_ROUNDS: 10
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      S3_ENDPOINT: http://localhost:9000
+      S3_BUCKET: knowledge-base-bucket
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      INGEST_QUEUE_NAME: ingest_jobs
+      OPENAI_API_KEY: ""
+      OPENAI_GROUNDED_CHAT_ENABLED: "false"
+      OPENAI_EMBEDDINGS_ENABLED: "false"
+      OPENAI_CHAT_MODEL: gpt-4o-mini
+      OPENAI_EMBEDDING_MODEL: text-embedding-3-small
+      DEMO_ADMIN_EMAIL: demo-admin@example.com
+      DEMO_ADMIN_PASSWORD: DemoPass1234
+      DEMO_EDITOR_EMAIL: demo-editor@example.com
+      DEMO_EDITOR_PASSWORD: DemoPass1234
+      DEMO_VIEWER_EMAIL: demo-viewer@example.com
+      DEMO_VIEWER_PASSWORD: DemoPass1234
+      DEMO_USER_EMAIL: demo-user@example.com
+      DEMO_USER_PASSWORD: DemoPass1234
+      DEMO_KB_NAME: Support Demo KB
+      DEMO_KB_DESCRIPTION: CI test KB
+      DEMO_KB_VISIBILITY: PRIVATE
+      DEMO_EVAL_SET_NAME: Support Smoke Eval
+      UPLOAD_MAX_BYTES: 10485760
+      CORS_ORIGINS: http://localhost:5173
     steps:
       - name: Checkout
         uses: actions/checkout@v4
