@@ -220,7 +220,7 @@ describe("ChatService", () => {
       lexicalUsed: true,
       semanticUsed: false,
       totalCandidates: 1,
-      selectedChunks: [{ hybridScore: 0.08, kbId: "kb-1" }],
+      selectedChunks: [{ hybridScore: 0.01, kbId: "kb-1" }],
       debug: {
         query: {
           normalizedText: "vacation policy",

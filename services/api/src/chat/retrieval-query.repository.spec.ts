@@ -60,8 +60,8 @@ describe("RetrievalQueryRepository", () => {
     const sql = prisma.$queryRaw.mock.calls[0][0];
     const sqlText = sql.strings.join(" ");
 
-    expect(sqlText).toContain("to_tsquery('english',");
-    expect(sqlText).toContain("to_tsvector('english',");
+    expect(sqlText).toContain("to_tsquery('simple',");
+    expect(sqlText).toContain("to_tsvector('simple',");
     expect(sqlText).toContain("concat_ws(");
     expect(sqlText).toContain('dc."supersededAt" IS NULL');
     expect(sqlText).toContain('dc."documentId" IN (');

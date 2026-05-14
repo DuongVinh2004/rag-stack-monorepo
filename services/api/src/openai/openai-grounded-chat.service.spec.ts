@@ -31,7 +31,7 @@ describe('OpenAiGroundedChatService', () => {
       ...overrides,
     } as any;
     const client = {
-      createResponse: jest.fn(),
+      createChatCompletion: jest.fn(),
     } as any;
     const observability = {
       recordSuccess: jest.fn(),
@@ -54,11 +54,14 @@ describe('OpenAiGroundedChatService', () => {
 
   it('passes prompt assembly output through to the client without rebuilding it', async () => {
     const { service, client } = createService();
-    client.createResponse.mockResolvedValue({
+    client.createChatCompletion.mockResolvedValue({
       attempts: 1,
       response: {
-        output_text:
-          '{"status":"grounded","answer":"Reset the worker before retrying.","used_chunk_ids":["chunk-1","chunk-1"]}',
+        choices: [{
+          message: {
+            content: '{"status":"grounded","answer":"Reset the worker before retrying.","used_chunk_ids":["chunk-1","chunk-1"]}',
+          }
+        }],
         usage: {
           input_tokens: 20,
           output_tokens: 8,
@@ -90,13 +93,14 @@ describe('OpenAiGroundedChatService', () => {
       },
       model: 'gpt-5',
     });
-    expect(client.createResponse).toHaveBeenCalledWith(
+    expect(client.createChatCompletion).toHaveBeenCalledWith(
       expect.objectContaining({
-        instructions: prompt.instructions,
-        input: prompt.input,
+        messages: [
+          { role: 'system', content: prompt.instructions },
+          { role: 'user', content: prompt.input },
+        ],
         model: 'gpt-5',
         temperature: 0.1,
-        store: false,
       }),
       expect.objectContaining({
         model: 'gpt-5',
@@ -107,10 +111,14 @@ describe('OpenAiGroundedChatService', () => {
 
   it('rejects malformed model output instead of returning partial data', async () => {
     const { service, client, observability } = createService();
-    client.createResponse.mockResolvedValue({
+    client.createChatCompletion.mockResolvedValue({
       attempts: 1,
       response: {
-        output_text: '{"status":"grounded","answer":42,"used_chunk_ids":["chunk-1"]}',
+        choices: [{
+          message: {
+            content: '{"status":"grounded","answer":42,"used_chunk_ids":["chunk-1"]}',
+          }
+        }],
         usage: {
           input_tokens: 10,
           output_tokens: 2,

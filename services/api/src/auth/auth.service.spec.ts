@@ -47,7 +47,7 @@ describe("AuthService", () => {
         ),
       verifyAsync: jest.fn(),
       decode: jest.fn(() => ({
-        exp: Math.floor(new Date("2026-05-04T10:00:00Z").getTime() / 1000),
+        exp: Math.floor(new Date("2030-05-04T10:00:00Z").getTime() / 1000),
       })),
     } as any;
 
@@ -121,7 +121,7 @@ describe("AuthService", () => {
       userId: "user-1",
       tokenHash:
         prisma.refreshSession.create.mock.calls[0][0].data.tokenHash,
-      expiresAt: new Date("2026-05-04T10:00:00Z"),
+      expiresAt: new Date("2030-05-04T10:00:00Z"),
       revokedAt: null,
       user: {
         id: "user-1",
