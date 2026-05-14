@@ -131,7 +131,9 @@ jobs:
         run: pnpm run test:api:e2e
 
       - name: Run worker tests
-        run: pnpm run test:worker
+        env:
+          PYTHONPATH: services/worker
+        run: python -m pytest services/worker/tests -v
 
       - name: Build API
         run: pnpm --filter api run build
