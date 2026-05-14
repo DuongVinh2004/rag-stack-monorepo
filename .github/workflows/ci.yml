@@ -32,19 +32,6 @@ jobs:
           --health-interval=5s
           --health-timeout=5s
           --health-retries=10
-      minio:
-        image: bitnami/minio:latest
-        env:
-          MINIO_ROOT_USER: minioadmin
-          MINIO_ROOT_PASSWORD: minioadmin
-          MINIO_DEFAULT_BUCKETS: knowledge-base-bucket
-        ports:
-          - 9000:9000
-        options: >-
-          --health-cmd="curl -f http://localhost:9000/minio/health/live"
-          --health-interval=5s
-          --health-timeout=5s
-          --health-retries=10
     env:
       DATABASE_URL: postgresql://rag_user:rag_password@localhost:5432/rag_db?schema=public
       JWT_SECRET: ci-test-jwt-secret-not-for-production
@@ -99,6 +86,19 @@ jobs:
           python-version: '3.11'
           cache: pip
           cache-dependency-path: services/worker/requirements.txt
+
+      - name: Start MinIO
+        run: |
+          docker run -d -p 9000:9000 --name minio \
+            -e "MINIO_ROOT_USER=minioadmin" \
+            -e "MINIO_ROOT_PASSWORD=minioadmin" \
+            minio/minio server /data
+          echo "Waiting for MinIO..."
+          until curl -f http://localhost:9000/minio/health/live; do
+            sleep 2
+          done
+          # Create bucket
+          docker exec minio sh -c "mkdir -p /data/knowledge-base-bucket"
 
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
@@ -178,19 +178,6 @@ jobs:
           --health-interval=5s
           --health-timeout=5s
           --health-retries=10
-      minio:
-        image: bitnami/minio:latest
-        env:
-          MINIO_ROOT_USER: minioadmin
-          MINIO_ROOT_PASSWORD: minioadmin
-          MINIO_DEFAULT_BUCKETS: knowledge-base-bucket
-        ports:
-          - 9000:9000
-        options: >-
-          --health-cmd="curl -f http://localhost:9000/minio/health/live"
-          --health-interval=5s
-          --health-timeout=5s
-          --health-retries=10
     env:
       DATABASE_URL: postgresql://rag_user:rag_password@localhost:5432/rag_db?schema=public
       JWT_SECRET: ci-test-jwt-secret-not-for-production
@@ -239,6 +226,18 @@ jobs:
           node-version: 20
           cache: pnpm
 
+      - name: Start MinIO
+        run: |
+          docker run -d -p 9000:9000 --name minio \
+            -e "MINIO_ROOT_USER=minioadmin" \
+            -e "MINIO_ROOT_PASSWORD=minioadmin" \
+            minio/minio server /data
+          echo "Waiting for MinIO..."
+          until curl -f http://localhost:9000/minio/health/live; do
+            sleep 2
+          done
+          # Create bucket
+          docker exec minio sh -c "mkdir -p /data/knowledge-base-bucket"
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
