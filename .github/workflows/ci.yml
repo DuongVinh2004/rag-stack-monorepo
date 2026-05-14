@@ -110,10 +110,11 @@ jobs:
           --health-timeout=5s
           --health-retries=10
       minio:
-        image: minio/minio
+        image: bitnami/minio:latest
         env:
           MINIO_ROOT_USER: minioadmin
           MINIO_ROOT_PASSWORD: minioadmin
+          MINIO_DEFAULT_BUCKETS: knowledge-base-bucket
         ports:
           - 9000:9000
         options: >-
@@ -121,9 +122,6 @@ jobs:
           --health-interval=5s
           --health-timeout=5s
           --health-retries=10
-        args:
-          - server
-          - /data
     env:
       DATABASE_URL: postgresql://rag_user:rag_password@localhost:5432/rag_db?schema=public
       JWT_SECRET: ci-test-jwt-secret-not-for-production
