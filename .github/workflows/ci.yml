@@ -134,7 +134,9 @@ jobs:
         env:
           PYTHONPATH: .
         working-directory: services/worker
-        run: python -m pytest tests -v
+        run: |
+          python -m pytest tests -v > pytest.log 2>&1 || (cat pytest.log && exit 1)
+          cat pytest.log
 
       - name: Build API
         run: pnpm --filter api run build
