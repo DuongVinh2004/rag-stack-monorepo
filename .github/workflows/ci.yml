@@ -132,8 +132,9 @@ jobs:
 
       - name: Run worker tests
         env:
-          PYTHONPATH: services/worker
-        run: python -m pytest services/worker/tests -v
+          PYTHONPATH: .
+        working-directory: services/worker
+        run: python -m pytest tests -v
 
       - name: Build API
         run: pnpm --filter api run build
